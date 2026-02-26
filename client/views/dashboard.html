@@ -10,23 +10,18 @@
         <a href="/upload" class="btn btn-primary">+ New</a>
     </div>
     <div class="card-body">
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+        <div
+            style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
             <div class="card" style="text-align: center; padding: 1.5rem;">
-                <h3>📁 My Files</h3>
+                <h3>My Files</h3>
                 <p style="font-size: 1.5rem; font-weight: bold; color: #3498db;">{{ totalDocuments }}</p>
                 <p>Total documents</p>
             </div>
             <div class="card" style="text-align: center; padding: 1.5rem;">
-                <h3>� Storage Used</h3>
-                <p style="font-size: 1.5rem; font-weight: bold; color: #27ae60;">{{ formatFileSize(getTotalSize()) }}</p>
+                <h3>Storage Used</h3>
+                <p style="font-size: 1.5rem; font-weight: bold; color: #27ae60;">{{ formatFileSize(getTotalSize()) }}
+                </p>
                 <p>Total storage</p>
-            </div>
-            <div class="card" style="text-align: center; padding: 1.5rem;">
-                <h3>� Quick Actions</h3>
-                <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 1rem;">
-                    <a href="/documents" class="btn btn-secondary">Browse All</a>
-                    <a href="/upload" class="btn btn-success">Upload File</a>
-                </div>
             </div>
             <div class="card" style="text-align: center; padding: 1.5rem;">
                 <h3>📊 Recent Activity</h3>
@@ -41,7 +36,7 @@
                 <div class="spinner"></div>
                 <p>Loading documents...</p>
             </div>
-            
+
             <div ng-if="!loading && documents.length === 0" class="alert alert-warning">
                 <div style="text-align: center; padding: 2rem;">
                     <div style="font-size: 3rem; margin-bottom: 1rem;">📁</div>
@@ -50,10 +45,11 @@
                     <a href="/upload" class="btn btn-primary">Upload Document</a>
                 </div>
             </div>
-            
+
             <div ng-if="!loading && documents.length > 0">
                 <div class="document-grid">
-                    <div class="document-card" ng-repeat="doc in documents | limitTo:6" ng-click="viewDocument(doc._id)">
+                    <div class="document-card" ng-repeat="doc in documents | limitTo:6"
+                        ng-click="viewDocument(doc._id)">
                         <div class="document-title">
                             {{ getFileIcon(doc.mimetype) }} {{ doc.title }}
                         </div>
@@ -66,7 +62,8 @@
                             <span class="tag" ng-repeat="tag in doc.tags">{{ tag }}</span>
                         </div>
                         <div class="document-actions">
-                            <button class="btn btn-primary" ng-click="viewDocument(doc._id); $event.stopPropagation();">Open</button>
+                            <button class="btn btn-primary"
+                                ng-click="viewDocument(doc._id); $event.stopPropagation();">Open</button>
                         </div>
                     </div>
                 </div>

@@ -17,6 +17,7 @@
         </div>
         <div class="document-actions">
             <a href="/uploads/{{ document.filename }}" target="_blank" class="btn btn-primary">Download</a>
+            <button class="btn btn-secondary" ng-click="showVersionDialog()">📤 New Version</button>
             <button class="btn btn-secondary" ng-click="showShareDialog()">📧 Share</button>
             <button class="btn btn-secondary" ng-click="editing = !editing">{{ editing ? 'Cancel' : 'Edit' }}</button>
             <button class="btn btn-danger" ng-click="deleteDocument(document._id)">Delete</button>
@@ -26,7 +27,7 @@
         <div ng-if="error" class="alert alert-error">
             {{ error }}
         </div>
-        
+
         <div ng-if="success" class="alert alert-success">
             {{ success }}
         </div>
@@ -41,13 +42,15 @@
                         <p><strong>File Type:</strong> {{ document.mimetype }}</p>
                         <p><strong>Created:</strong> {{ formatDate(document.createdAt) }}</p>
                         <p><strong>Modified:</strong> {{ formatDate(document.updatedAt) }}</p>
-                        <p><strong>Owner:</strong> {{ document.uploadedBy.username }} ({{ document.uploadedBy.email }})</p>
+                        <p><strong>Owner:</strong> {{ document.uploadedBy.username }} ({{ document.uploadedBy.email }})
+                        </p>
                     </div>
                 </div>
                 <div>
                     <h4>Sharing & Permissions</h4>
                     <div class="document-meta">
-                        <p><strong>Visibility:</strong> {{ document.isPublic ? 'Public - Anyone with link can view' : 'Private - Only you can view' }}</p>
+                        <p><strong>Visibility:</strong> {{ document.isPublic ? 'Public - Anyone with link can view' :
+                            'Private - Only you can view' }}</p>
                         <p><strong>Current Version:</strong> v{{ document.currentVersion }}</p>
                     </div>
                 </div>
@@ -74,8 +77,10 @@
                                 </div>
                             </div>
                             <div class="document-actions">
-                                <button class="btn btn-secondary" ng-click="downloadVersion(version.filename)">Download</button>
-                                <button class="btn btn-primary" ng-if="version.version !== document.currentVersion" ng-click="restoreVersion(version)">Restore</button>
+                                <button class="btn btn-secondary"
+                                    ng-click="downloadVersion(version.filename)">Download</button>
+                                <button class="btn btn-primary" ng-if="version.version !== document.currentVersion"
+                                    ng-click="restoreVersion(version)">Restore</button>
                             </div>
                         </div>
                     </div>
@@ -94,7 +99,8 @@
 
                         <div class="form-group">
                             <label class="form-label" for="editDescription">Description</label>
-                            <textarea id="editDescription" class="form-textarea" ng-model="document.description"></textarea>
+                            <textarea id="editDescription" class="form-textarea"
+                                ng-model="document.description"></textarea>
                         </div>
                     </div>
                     <div>
@@ -128,6 +134,43 @@
     </div>
 </div>
 
+<!-- New Version Modal -->
+<div ng-if="showVersionModal" class="modal-overlay" ng-click="hideVersionDialog()">
+    <div class="modal-content" ng-click="$event.stopPropagation()">
+        <div class="modal-header">
+            <h3>📤 Upload New Version</h3>
+            <button class="modal-close" ng-click="hideVersionDialog()">×</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label class="form-label">Select File *</label>
+                <div class="upload-zone" onclick="document.getElementById('newVersionInput').click()"
+                    style="border: 2px dashed #3498db; padding: 2rem; text-align: center; border-radius: 8px; cursor: pointer; transition: background 0.3s; margin-bottom: 1rem;">
+                    <p style="font-size: 2rem; margin-bottom: 0.5rem;">📄</p>
+                    <p ng-if="!newVersionFile">Click to select or drag and drop new file version</p>
+                    <p ng-if="newVersionFile" style="color: #27ae60; font-weight: bold;">Selected: {{
+                        newVersionFile.name }}</p>
+                    <input type="file" id="newVersionInput" style="display: none;"
+                        onchange="angular.element(this).scope().setNewVersionFile(this.files[0])">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Changelog (Optional)</label>
+                <textarea class="form-textarea" ng-model="versionChangelog" placeholder="What changed in this version?"
+                    rows="3"></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" ng-click="hideVersionDialog()">Cancel</button>
+            <button class="btn btn-primary" ng-click="uploadNewVersion()" ng-disabled="loading || !newVersionFile">
+                <span ng-if="loading">Uploading...</span>
+                <span ng-if="!loading">📤 Upload Version</span>
+            </button>
+        </div>
+    </div>
+</div>
+
 <!-- Share Modal -->
 <div ng-if="showShareModal" class="modal-overlay" ng-click="hideShareDialog()">
     <div class="modal-content" ng-click="$event.stopPropagation()">
@@ -138,9 +181,9 @@
         <div class="modal-body">
             <div class="form-group">
                 <label class="form-label">Email Addresses *</label>
-                <textarea class="form-textarea" ng-model="sharing.emails" 
-                          placeholder="Enter email addresses separated by commas (e.g., user1@example.com, user2@example.com)" 
-                          rows="3" required></textarea>
+                <textarea class="form-textarea" ng-model="sharing.emails"
+                    placeholder="Enter email addresses separated by commas (e.g., user1@example.com, user2@example.com)"
+                    rows="3" required></textarea>
                 <small style="color: #5f6368;">Multiple emails can be separated by commas</small>
             </div>
 
@@ -155,15 +198,16 @@
 
             <div class="form-group">
                 <label class="form-label">Personal Message (Optional)</label>
-                <textarea class="form-textarea" ng-model="sharing.message" 
-                          placeholder="Add a personal message to the recipients..." 
-                          rows="3"></textarea>
+                <textarea class="form-textarea" ng-model="sharing.message"
+                    placeholder="Add a personal message to the recipients..." rows="3"></textarea>
             </div>
 
             <div class="form-group">
-                <div style="background-color: #f8f9fa; padding: 1rem; border-radius: 4px; border-left: 4px solid #3498db;">
+                <div
+                    style="background-color: #f8f9fa; padding: 1rem; border-radius: 4px; border-left: 4px solid #3498db;">
                     <p style="margin: 0; color: #5f6368;">
-                        <strong>Note:</strong> Recipients will receive an email with a link to access this document with the specified permission level.
+                        <strong>Note:</strong> Recipients will receive an email with a link to access this document with
+                        the specified permission level.
                     </p>
                 </div>
             </div>

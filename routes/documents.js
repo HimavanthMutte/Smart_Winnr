@@ -9,7 +9,9 @@ const {
     updateDocument,
     deleteDocument,
     updatePermissions,
-    shareDocumentViaEmail
+    shareDocumentViaEmail,
+    uploadNewVersion,
+    restoreVersion
 } = require('../controllers/documentController');
 
 const router = express.Router();
@@ -38,5 +40,9 @@ router.delete('/:id', auth, deleteDocument);
 
 router.put('/:id/permissions', auth, updatePermissions);
 router.post('/:id/share', auth, shareDocumentViaEmail);
+
+// Versioning routes
+router.post('/:id/version', auth, upload.single('document'), uploadNewVersion);
+router.post('/:id/restore/:versionNumber', auth, restoreVersion);
 
 module.exports = router;

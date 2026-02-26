@@ -104,20 +104,26 @@ const getDocuments = async (req, res) => {
             query.category = category;
         }
 
-        query.$or = [
-            { isPublic: true },
-            { uploadedBy: req.user.id },
-            { 'permissions.canView': req.user.id }
-        ];
+        // Security query: Public doc, Owned doc, ObjectId shared, or Email shared
+        const securityQuery = {
+            $or: [
+                { isPublic: true },
+                { uploadedBy: req.user.id },
+                { 'permissions.canView': req.user.id },
+                { 'permissions.sharedWith.email': req.user.email }
+            ]
+        };
 
-        const documents = await Document.find(query)
+        const finalQuery = search ? { $and: [query, securityQuery] } : securityQuery;
+
+        const documents = await Document.find(finalQuery)
             .populate('uploadedBy', 'username email')
             .populate('versions.uploadedBy', 'username')
-            .sort({ createdAt: -1 })
+            .sort({ updatedAt: -1 })
             .limit(limit * 1)
             .skip((page - 1) * limit);
 
-        const total = await Document.countDocuments(query);
+        const total = await Document.countDocuments(finalQuery);
 
         res.json({
             documents,
@@ -141,10 +147,15 @@ const getDocumentById = async (req, res) => {
             return res.status(404).json({ message: 'Document not found' });
         }
 
+        const hasEmailPermission = document.permissions.sharedWith.some(share =>
+            share.email.toLowerCase() === req.user.email.toLowerCase()
+        );
+
         const hasPermission = document.isPublic ||
-                            document.uploadedBy._id.toString() === req.user.id ||
-                            document.permissions.canView.some(id => id.toString() === req.user.id) ||
-                            req.user.role === 'admin';
+            document.uploadedBy._id.toString() === req.user.id ||
+            document.permissions.canView.some(id => id.toString() === req.user.id) ||
+            hasEmailPermission ||
+            req.user.role === 'admin';
 
         if (!hasPermission) {
             return res.status(403).json({ message: 'Access denied' });
@@ -166,9 +177,15 @@ const updateDocument = async (req, res) => {
             return res.status(404).json({ message: 'Document not found' });
         }
 
+        const emailPermission = document.permissions.sharedWith.find(share =>
+            share.email.toLowerCase() === req.user.email.toLowerCase()
+        );
+        const hasEmailEditPermission = emailPermission && (emailPermission.permission === 'edit' || emailPermission.permission === 'delete');
+
         const hasEditPermission = document.uploadedBy.toString() === req.user.id ||
-                                 document.permissions.canEdit.some(id => id.toString() === req.user.id) ||
-                                 req.user.role === 'admin';
+            document.permissions.canEdit.some(id => id.toString() === req.user.id) ||
+            hasEmailEditPermission ||
+            req.user.role === 'admin';
 
         if (!hasEditPermission) {
             return res.status(403).json({ message: 'Edit access denied' });
@@ -176,7 +193,7 @@ const updateDocument = async (req, res) => {
 
         if (title) document.title = title;
         if (description) document.description = description;
-        if (tags) document.tags = tags.split(',').map(tag => tag.trim());
+        if (tags) document.tags = typeof tags === 'string' ? tags.split(',').map(tag => tag.trim()) : tags;
         if (category) document.category = category;
         if (isPublic !== undefined) document.isPublic = isPublic === 'true';
 
@@ -198,9 +215,15 @@ const deleteDocument = async (req, res) => {
             return res.status(404).json({ message: 'Document not found' });
         }
 
+        const emailPermission = document.permissions.sharedWith.find(share =>
+            share.email.toLowerCase() === req.user.email.toLowerCase()
+        );
+        const hasEmailDeletePermission = emailPermission && emailPermission.permission === 'delete';
+
         const hasDeletePermission = document.uploadedBy.toString() === req.user.id ||
-                                   document.permissions.canDelete.some(id => id.toString() === req.user.id) ||
-                                   req.user.role === 'admin';
+            document.permissions.canDelete.some(id => id.toString() === req.user.id) ||
+            hasEmailDeletePermission ||
+            req.user.role === 'admin';
 
         if (!hasDeletePermission) {
             return res.status(403).json({ message: 'Delete access denied' });
@@ -264,8 +287,25 @@ const shareDocumentViaEmail = async (req, res) => {
             return res.status(403).json({ message: 'Permission denied' });
         }
 
+        // Update document with shared emails
+        emails.forEach(email => {
+            const lowerEmail = email.toLowerCase().trim();
+            // Check if already shared
+            const existingIndex = document.permissions.sharedWith.findIndex(s => s.email === lowerEmail);
+            if (existingIndex > -1) {
+                document.permissions.sharedWith[existingIndex].permission = permission || 'view';
+            } else {
+                document.permissions.sharedWith.push({
+                    email: lowerEmail,
+                    permission: permission || 'view'
+                });
+            }
+        });
+
+        await document.save();
+
         // Create email transporter
-        const transporter = nodemailer.createTransporter({
+        const transporter = nodemailer.createTransport({
             service: 'gmail',
             auth: {
                 user: process.env.EMAIL_USER,
@@ -273,41 +313,166 @@ const shareDocumentViaEmail = async (req, res) => {
             }
         });
 
-        const documentUrl = `${process.env.BASE_URL || 'http://localhost:3000'}/document/${documentId}`;
-        
+        const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
+        const documentUrl = `${baseUrl}/document/${documentId}`;
+
         for (const email of emails) {
             const mailOptions = {
                 from: process.env.EMAIL_USER,
                 to: email,
                 subject: `${document.uploadedBy.username} shared a document with you: ${document.title}`,
                 html: `
-                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                        <h2 style="color: #202124;">📁 Document Shared With You</h2>
-                        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                            <h3 style="color: #3498db; margin-top: 0;">${document.title}</h3>
-                            <p><strong>Shared by:</strong> ${document.uploadedBy.username}</p>
-                            <p><strong>Description:</strong> ${document.description || 'No description'}</p>
-                            <p><strong>File Size:</strong> ${formatFileSize(document.filesize)}</p>
-                            <p><strong>Permission:</strong> ${permission || 'view'}</p>
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+                        <div style="background-color: #3498db; padding: 20px; text-align: center;">
+                            <h1 style="color: white; margin: 0; font-size: 24px;">📁 Shared Document</h1>
                         </div>
-                        ${message ? `<p><strong>Message:</strong> ${message}</p>` : ''}
-                        <div style="text-align: center; margin: 30px 0;">
-                            <a href="${documentUrl}" style="background-color: #3498db; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">View Document</a>
+                        <div style="padding: 20px; line-height: 1.6; color: #333;">
+                            <p>Hello,</p>
+                            <p><strong>${document.uploadedBy.username}</strong> has shared a document with you on Smart Winnr.</p>
+                            
+                            <div style="background-color: #f9f9f9; border-left: 4px solid #3498db; padding: 15px; margin: 20px 0;">
+                                <h3 style="margin-top: 0; color: #2c3e50;">${document.title}</h3>
+                                <p style="margin-bottom: 5px;"><strong>Description:</strong> ${document.description || 'No description'}</p>
+                                <p style="margin-bottom: 5px;"><strong>Access Level:</strong> ${permission || 'view'}</p>
+                                <p style="margin-bottom: 0;"><strong>File Size:</strong> ${formatFileSize(document.filesize)}</p>
+                            </div>
+
+                            ${message ? `<p><strong>Message from ${document.uploadedBy.username}:</strong><br><em>"${message}"</em></p>` : ''}
+
+                            <div style="text-align: center; margin: 30px 0;">
+                                <a href="${documentUrl}" style="background-color: #3498db; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 16px;">View in Application</a>
+                            </div>
+
+                            <p style="font-size: 14px; color: #7f8c8d;">If you don't have an account, please register with <strong>${email}</strong> to access this document.</p>
                         </div>
-                        <p style="color: #5f6368; font-size: 14px;">This link will give you ${permission || 'view'} access to the document.</p>
-                        <hr style="border: 1px solid #e8eaed; margin: 30px 0;">
-                        <p style="color: #5f6368; font-size: 12px;">This email was sent from the Document Management System.</p>
+                        <div style="background-color: #f1f1f1; padding: 15px; text-align: center; font-size: 12px; color: #95a5a6;">
+                            This is an automated message from the Smart Winnr Document Management System.
+                        </div>
                     </div>
                 `
             };
 
-            await transporter.sendMail(mailOptions);
+            // Only attempt to send if credentials are set
+            if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+                try {
+                    await transporter.sendMail(mailOptions);
+                } catch (e) {
+                    console.error('Failed to send email to', email, e.message);
+                }
+            } else {
+                console.log('Skipping email send - no credentials. Document shared in DB.');
+            }
         }
 
         res.json({ message: `Document shared successfully with ${emails.length} recipient(s)` });
     } catch (error) {
         console.error('Email sharing error:', error);
-        res.status(500).json({ message: 'Failed to share document via email' });
+        res.status(500).json({ message: 'Failed to share document' });
+    }
+};
+
+const uploadNewVersion = async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ message: 'No file uploaded' });
+        }
+
+        const document = await Document.findById(req.params.id);
+        if (!document) {
+            return res.status(404).json({ message: 'Document not found' });
+        }
+
+        const emailPermission = document.permissions.sharedWith.find(share =>
+            share.email.toLowerCase() === req.user.email.toLowerCase()
+        );
+        const hasEditPermission = document.uploadedBy.toString() === req.user.id ||
+            document.permissions.canEdit.some(id => id.toString() === req.user.id) ||
+            (emailPermission && (emailPermission.permission === 'edit' || emailPermission.permission === 'delete')) ||
+            req.user.role === 'admin';
+
+        if (!hasEditPermission) {
+            return res.status(403).json({ message: 'Permission denied to upload new version' });
+        }
+
+        const newVersionNumber = (document.currentVersion || 1) + 1;
+
+        const newVersion = {
+            version: newVersionNumber,
+            filename: req.file.filename,
+            filepath: req.file.path,
+            uploadedBy: req.user.id,
+            changelog: req.body.changelog || `Updated on ${new Date().toLocaleDateString()}`
+        };
+
+        document.versions.push(newVersion);
+        document.currentVersion = newVersionNumber;
+        document.filename = req.file.filename;
+        document.filepath = req.file.path;
+        document.filesize = req.file.size;
+        document.updatedAt = Date.now();
+
+        await document.save();
+        await document.populate('uploadedBy', 'username email');
+        await document.populate('versions.uploadedBy', 'username');
+
+        res.json(document);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Failed to upload new version' });
+    }
+};
+
+const restoreVersion = async (req, res) => {
+    try {
+        const document = await Document.findById(req.params.id);
+        if (!document) {
+            return res.status(404).json({ message: 'Document not found' });
+        }
+
+        const versionToRestore = document.versions.find(v => v.version === parseInt(req.params.versionNumber));
+        if (!versionToRestore) {
+            return res.status(404).json({ message: 'Version not found' });
+        }
+
+        const emailPermission = document.permissions.sharedWith.find(share =>
+            share.email.toLowerCase() === req.user.email.toLowerCase()
+        );
+        const hasEditPermission = document.uploadedBy.toString() === req.user.id ||
+            document.permissions.canEdit.some(id => id.toString() === req.user.id) ||
+            (emailPermission && (emailPermission.permission === 'edit' || emailPermission.permission === 'delete')) ||
+            req.user.role === 'admin';
+
+        if (!hasEditPermission) {
+            return res.status(403).json({ message: 'Permission denied to restore version' });
+        }
+
+        // We "restore" by creating a NEW version that is a copy of the old one
+        // Note: In a production app, we might want to copy the file itself to avoid two versions pointing to same path
+        // but here they are just paths on disk.
+
+        const newVersionNumber = document.currentVersion + 1;
+        const newVersion = {
+            version: newVersionNumber,
+            filename: versionToRestore.filename,
+            filepath: versionToRestore.filepath,
+            uploadedBy: req.user.id,
+            changelog: `Restored from version ${versionToRestore.version}`
+        };
+
+        document.versions.push(newVersion);
+        document.currentVersion = newVersionNumber;
+        document.filename = versionToRestore.filename;
+        document.filepath = versionToRestore.filepath;
+        document.updatedAt = Date.now();
+
+        await document.save();
+        await document.populate('uploadedBy', 'username email');
+        await document.populate('versions.uploadedBy', 'username');
+
+        res.json(document);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Failed to restore version' });
     }
 };
 
@@ -327,5 +492,7 @@ module.exports = {
     updateDocument,
     deleteDocument,
     updatePermissions,
-    shareDocumentViaEmail
+    shareDocumentViaEmail,
+    uploadNewVersion,
+    restoreVersion
 };

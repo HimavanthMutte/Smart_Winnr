@@ -55,6 +55,22 @@ const documentSchema = new mongoose.Schema({
         canDelete: [{
             type: mongoose.Schema.Types.ObjectId,
             ref: 'User'
+        }],
+        sharedWith: [{
+            email: {
+                type: String,
+                lowercase: true,
+                trim: true
+            },
+            permission: {
+                type: String,
+                enum: ['view', 'edit', 'delete'],
+                default: 'view'
+            },
+            sharedAt: {
+                type: Date,
+                default: Date.now
+            }
         }]
     },
     versions: [{
