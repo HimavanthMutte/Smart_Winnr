@@ -1,0 +1,38 @@
+<div class="form-container">
+    <h2 class="card-title">Profile</h2>
+    
+    <div ng-if="error" class="alert alert-error">
+        {{ error }}
+    </div>
+
+    <div ng-if="loading" class="loading">
+        <div class="spinner"></div>
+        <p>Loading profile...</p>
+    </div>
+
+    <div ng-if="!loading && profile">
+        <div class="form-group">
+            <label class="form-label">Username</label>
+            <input type="text" class="form-input" ng-model="profile.username" readonly>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Email</label>
+            <input type="email" class="form-input" ng-model="profile.email" readonly>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Role</label>
+            <input type="text" class="form-input" ng-model="profile.role" readonly>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Member Since</label>
+            <input type="text" class="form-input" ng-value="formatDate(profile.createdAt)" readonly>
+        </div>
+
+        <div style="margin-top: 2rem;">
+            <a href="/dashboard" class="btn btn-primary">Back to Dashboard</a>
+        </div>
+    </div>
+</div>

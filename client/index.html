@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <base href="/">
+    <title>Document Management System</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body ng-app="dmsApp" ng-controller="mainController">
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <h1 class="logo">Document Management System</h1>
+                <nav class="nav">
+                    <ul class="nav-list">
+                        <li><a href="/dashboard" class="nav-link">Dashboard</a></li>
+                        <li><a href="/documents" class="nav-link">Documents</a></li>
+                        <li><a href="/upload" class="nav-link">Upload</a></li>
+                        <li ng-if="!isLoggedIn"><a href="/login" class="nav-link">Login</a></li>
+                        <li ng-if="!isLoggedIn"><a href="/register" class="nav-link">Register</a></li>
+                        <li ng-if="isLoggedIn"><a href="/profile" class="nav-link">Profile</a></li>
+                        <li ng-if="isLoggedIn"><a href ng-click="logout()" class="nav-link">Logout</a></li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <main class="main">
+        <div class="container">
+            <div ng-view></div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2024 Document Management System. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.2/angular.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.2/angular-route.min.js"></script>
+    <script src="app.js"></script>
+    <script src="controllers/authController.js"></script>
+    <script src="controllers/documentController.js"></script>
+    <script src="controllers/mainController.js"></script>
+    <script src="services/authService.js"></script>
+    <script src="services/documentService.js"></script>
+</body>
+</html>

@@ -1,0 +1,79 @@
+<div class="card">
+    <div class="card-header">
+        <div style="display: flex; align-items: center; gap: 1rem;">
+            <h2 class="card-title" style="margin: 0;">My Drive</h2>
+            <div style="display: flex; gap: 0.5rem;">
+                <span class="tag" style="background-color: #3498db;">{{ totalDocuments }} items</span>
+                <span class="tag" style="background-color: #27ae60;">{{ formatFileSize(getTotalSize()) }}</span>
+            </div>
+        </div>
+        <a href="/upload" class="btn btn-primary">+ New</a>
+    </div>
+    <div class="card-body">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+            <div class="card" style="text-align: center; padding: 1.5rem;">
+                <h3>📁 My Files</h3>
+                <p style="font-size: 1.5rem; font-weight: bold; color: #3498db;">{{ totalDocuments }}</p>
+                <p>Total documents</p>
+            </div>
+            <div class="card" style="text-align: center; padding: 1.5rem;">
+                <h3>� Storage Used</h3>
+                <p style="font-size: 1.5rem; font-weight: bold; color: #27ae60;">{{ formatFileSize(getTotalSize()) }}</p>
+                <p>Total storage</p>
+            </div>
+            <div class="card" style="text-align: center; padding: 1.5rem;">
+                <h3>� Quick Actions</h3>
+                <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 1rem;">
+                    <a href="/documents" class="btn btn-secondary">Browse All</a>
+                    <a href="/upload" class="btn btn-success">Upload File</a>
+                </div>
+            </div>
+            <div class="card" style="text-align: center; padding: 1.5rem;">
+                <h3>📊 Recent Activity</h3>
+                <p style="font-size: 1.5rem; font-weight: bold; color: #f39c12;">Today</p>
+                <p>Last activity</p>
+            </div>
+        </div>
+
+        <div style="margin-top: 2rem;">
+            <h3 style="margin-bottom: 1rem;">Recent Documents</h3>
+            <div ng-if="loading" class="loading">
+                <div class="spinner"></div>
+                <p>Loading documents...</p>
+            </div>
+            
+            <div ng-if="!loading && documents.length === 0" class="alert alert-warning">
+                <div style="text-align: center; padding: 2rem;">
+                    <div style="font-size: 3rem; margin-bottom: 1rem;">📁</div>
+                    <h3>No documents yet</h3>
+                    <p>Start by uploading your first document</p>
+                    <a href="/upload" class="btn btn-primary">Upload Document</a>
+                </div>
+            </div>
+            
+            <div ng-if="!loading && documents.length > 0">
+                <div class="document-grid">
+                    <div class="document-card" ng-repeat="doc in documents | limitTo:6" ng-click="viewDocument(doc._id)">
+                        <div class="document-title">
+                            {{ getFileIcon(doc.mimetype) }} {{ doc.title }}
+                        </div>
+                        <div class="document-meta">
+                            <p><strong>Modified:</strong> {{ formatDate(doc.updatedAt) }}</p>
+                            <p><strong>Size:</strong> {{ formatFileSize(doc.filesize) }}</p>
+                            <p><strong>Shared:</strong> {{ doc.isPublic ? 'Public' : 'Private' }}</p>
+                        </div>
+                        <div class="document-tags" ng-if="doc.tags.length > 0">
+                            <span class="tag" ng-repeat="tag in doc.tags">{{ tag }}</span>
+                        </div>
+                        <div class="document-actions">
+                            <button class="btn btn-primary" ng-click="viewDocument(doc._id); $event.stopPropagation();">Open</button>
+                        </div>
+                    </div>
+                </div>
+                <div style="text-align: center; margin-top: 2rem;">
+                    <a href="/documents" class="btn btn-secondary">View All Documents</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

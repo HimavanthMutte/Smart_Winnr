@@ -1,0 +1,90 @@
+<div class="search-container">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h2 style="margin: 0; color: #202124; font-size: 1.5rem; font-weight: 400;">My Drive</h2>
+        <a href="/upload" class="btn btn-primary">+ New</a>
+    </div>
+    
+    <div class="search-form">
+        <input type="text" class="form-input" ng-model="searchQuery" placeholder="Search in Drive..." ng-enter="searchDocuments()" style="flex: 1;">
+        <button class="btn btn-secondary" ng-click="searchDocuments()">Search</button>
+    </div>
+
+    <div class="filter-form">
+        <div class="form-group">
+            <label class="form-label">Type</label>
+            <select class="form-input" ng-model="selectedCategory">
+                <option value="">All types</option>
+                <option value="PDF">PDF</option>
+                <option value="Image">Images</option>
+                <option value="Document">Documents</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Tags</label>
+            <input type="text" class="form-input" ng-model="selectedTags" placeholder="Filter by tags...">
+        </div>
+        <div class="form-group">
+            <label class="form-label">&nbsp;</label>
+            <button class="btn btn-secondary" ng-click="clearSearch()">Clear</button>
+        </div>
+    </div>
+</div>
+
+<div ng-if="error" class="alert alert-error">
+    {{ error }}
+</div>
+
+<div ng-if="success" class="alert alert-success">
+    {{ success }}
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div ng-if="loading" class="loading">
+            <div class="spinner"></div>
+            <p>Loading documents...</p>
+        </div>
+        
+        <div ng-if="!loading && documents.length === 0" class="alert alert-warning">
+            <div style="text-align: center; padding: 2rem;">
+                <div style="font-size: 3rem; margin-bottom: 1rem;">📁</div>
+                <h3>No documents found</h3>
+                <p>Start by uploading your first document</p>
+                <a href="/upload" class="btn btn-primary">Upload Document</a>
+            </div>
+        </div>
+        
+        <div ng-if="!loading && documents.length > 0">
+            <div class="document-grid">
+                <div class="document-card" ng-repeat="doc in documents" ng-click="viewDocument(doc._id)">
+                    <div class="document-title">
+                        {{ getFileIcon(doc.mimetype) }} {{ doc.title }}
+                    </div>
+                    <div class="document-meta">
+                        <p><strong>Modified:</strong> {{ formatDate(doc.updatedAt) }}</p>
+                        <p><strong>Size:</strong> {{ formatFileSize(doc.filesize) }}</p>
+                        <p><strong>Shared:</strong> {{ doc.isPublic ? 'Public' : 'Private' }}</p>
+                    </div>
+                    <div class="document-tags" ng-if="doc.tags.length > 0">
+                        <span class="tag" ng-repeat="tag in doc.tags">{{ tag }}</span>
+                    </div>
+                    <div class="document-actions" style="margin-top: 1rem;">
+                        <button class="btn btn-primary" ng-click="viewDocument(doc._id); $event.stopPropagation();">Open</button>
+                        <button class="btn btn-secondary" ng-click="downloadDocument(doc.filename); $event.stopPropagation();">Download</button>
+                        <button class="btn btn-danger" ng-click="deleteDocument(doc._id); $event.stopPropagation();">Delete</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pagination" ng-if="totalPages > 1">
+                <button class="pagination-btn" ng-click="changePage(currentPage - 1)" ng-disabled="currentPage === 1">Previous</button>
+                <button class="pagination-btn" ng-repeat="page in [].constructor(totalPages) track by $index" 
+                        ng-click="changePage($index + 1)" 
+                        ng-class="{active: currentPage === $index + 1}">
+                    {{ $index + 1 }}
+                </button>
+                <button class="pagination-btn" ng-click="changePage(currentPage + 1)" ng-disabled="currentPage === totalPages">Next</button>
+            </div>
+        </div>
+    </div>
+</div>
