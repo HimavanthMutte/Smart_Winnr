@@ -17,6 +17,7 @@
         </div>
         <div class="document-actions">
             <a href="/uploads/{{ document.filename }}" target="_blank" class="btn btn-primary">Download</a>
+            <button class="btn btn-secondary" ng-click="showShareDialog()">📧 Share</button>
             <button class="btn btn-secondary" ng-click="editing = !editing">{{ editing ? 'Cancel' : 'Edit' }}</button>
             <button class="btn btn-danger" ng-click="deleteDocument(document._id)">Delete</button>
         </div>
@@ -123,6 +124,56 @@
                     <button type="button" class="btn btn-secondary" ng-click="editing = false">Cancel</button>
                 </div>
             </form>
+        </div>
+    </div>
+</div>
+
+<!-- Share Modal -->
+<div ng-if="showShareModal" class="modal-overlay" ng-click="hideShareDialog()">
+    <div class="modal-content" ng-click="$event.stopPropagation()">
+        <div class="modal-header">
+            <h3>📧 Share Document</h3>
+            <button class="modal-close" ng-click="hideShareDialog()">×</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label class="form-label">Email Addresses *</label>
+                <textarea class="form-textarea" ng-model="sharing.emails" 
+                          placeholder="Enter email addresses separated by commas (e.g., user1@example.com, user2@example.com)" 
+                          rows="3" required></textarea>
+                <small style="color: #5f6368;">Multiple emails can be separated by commas</small>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Permission Level</label>
+                <select class="form-input" ng-model="sharing.permission">
+                    <option value="view">View Only</option>
+                    <option value="edit">Can Edit</option>
+                    <option value="delete">Can Delete</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Personal Message (Optional)</label>
+                <textarea class="form-textarea" ng-model="sharing.message" 
+                          placeholder="Add a personal message to the recipients..." 
+                          rows="3"></textarea>
+            </div>
+
+            <div class="form-group">
+                <div style="background-color: #f8f9fa; padding: 1rem; border-radius: 4px; border-left: 4px solid #3498db;">
+                    <p style="margin: 0; color: #5f6368;">
+                        <strong>Note:</strong> Recipients will receive an email with a link to access this document with the specified permission level.
+                    </p>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" ng-click="hideShareDialog()">Cancel</button>
+            <button class="btn btn-primary" ng-click="shareDocument()" ng-disabled="loading">
+                <span ng-if="loading">Sending...</span>
+                <span ng-if="!loading">📧 Send Email</span>
+            </button>
         </div>
     </div>
 </div>

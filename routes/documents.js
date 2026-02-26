@@ -8,7 +8,8 @@ const {
     getDocumentById,
     updateDocument,
     deleteDocument,
-    updatePermissions
+    updatePermissions,
+    shareDocumentViaEmail
 } = require('../controllers/documentController');
 
 const router = express.Router();
@@ -36,5 +37,6 @@ router.put('/:id', auth, [
 router.delete('/:id', auth, deleteDocument);
 
 router.put('/:id/permissions', auth, updatePermissions);
+router.post('/:id/share', auth, shareDocumentViaEmail);
 
 module.exports = router;

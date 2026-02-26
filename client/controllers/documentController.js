@@ -206,6 +206,47 @@ app.controller('documentController', ['$scope', '$location', '$routeParams', 'do
         }
     };
 
+    $scope.showShareDialog = function() {
+        $scope.sharing = {
+            emails: '',
+            message: '',
+            permission: 'view'
+        };
+        $scope.showShareModal = true;
+    };
+
+    $scope.hideShareDialog = function() {
+        $scope.showShareModal = false;
+        $scope.sharing = {};
+    };
+
+    $scope.shareDocument = function() {
+        if (!$scope.sharing.emails) {
+            $scope.error = 'Please enter at least one email address';
+            return;
+        }
+
+        const emails = $scope.sharing.emails.split(',').map(email => email.trim()).filter(email => email);
+        const shareData = {
+            emails: emails,
+            message: $scope.sharing.message,
+            permission: $scope.sharing.permission
+        };
+
+        $scope.loading = true;
+        documentService.shareViaEmail($scope.document._id, shareData)
+            .then(function(response) {
+                $scope.success = response.data.message;
+                $scope.hideShareDialog();
+            })
+            .catch(function(error) {
+                $scope.error = error.data.message || 'Failed to share document';
+            })
+            .finally(function() {
+                $scope.loading = false;
+            });
+    };
+
     $scope.changePage = function(page) {
         if (page >= 1 && page <= $scope.totalPages) {
             $scope.getDocuments(page);

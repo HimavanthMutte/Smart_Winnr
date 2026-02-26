@@ -1,8 +1,10 @@
 const multer = require('multer');
 const path = require('path');
+const nodemailer = require('nodemailer');
 const fs = require('fs');
 const { validationResult } = require('express-validator');
 const Document = require('../models/Document');
+const User = require('../models/User');
 
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
@@ -246,6 +248,77 @@ const updatePermissions = async (req, res) => {
     }
 };
 
+const shareDocumentViaEmail = async (req, res) => {
+    try {
+        const { emails, message, permission } = req.body;
+        const documentId = req.params.id;
+
+        const document = await Document.findById(documentId).populate('uploadedBy', 'username email');
+        if (!document) {
+            return res.status(404).json({ message: 'Document not found' });
+        }
+
+        const hasPermission = document.uploadedBy._id.toString() === req.user.id || req.user.role === 'admin';
+
+        if (!hasPermission) {
+            return res.status(403).json({ message: 'Permission denied' });
+        }
+
+        // Create email transporter
+        const transporter = nodemailer.createTransporter({
+            service: 'gmail',
+            auth: {
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASS
+            }
+        });
+
+        const documentUrl = `${process.env.BASE_URL || 'http://localhost:3000'}/document/${documentId}`;
+        
+        for (const email of emails) {
+            const mailOptions = {
+                from: process.env.EMAIL_USER,
+                to: email,
+                subject: `${document.uploadedBy.username} shared a document with you: ${document.title}`,
+                html: `
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                        <h2 style="color: #202124;">📁 Document Shared With You</h2>
+                        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                            <h3 style="color: #3498db; margin-top: 0;">${document.title}</h3>
+                            <p><strong>Shared by:</strong> ${document.uploadedBy.username}</p>
+                            <p><strong>Description:</strong> ${document.description || 'No description'}</p>
+                            <p><strong>File Size:</strong> ${formatFileSize(document.filesize)}</p>
+                            <p><strong>Permission:</strong> ${permission || 'view'}</p>
+                        </div>
+                        ${message ? `<p><strong>Message:</strong> ${message}</p>` : ''}
+                        <div style="text-align: center; margin: 30px 0;">
+                            <a href="${documentUrl}" style="background-color: #3498db; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">View Document</a>
+                        </div>
+                        <p style="color: #5f6368; font-size: 14px;">This link will give you ${permission || 'view'} access to the document.</p>
+                        <hr style="border: 1px solid #e8eaed; margin: 30px 0;">
+                        <p style="color: #5f6368; font-size: 12px;">This email was sent from the Document Management System.</p>
+                    </div>
+                `
+            };
+
+            await transporter.sendMail(mailOptions);
+        }
+
+        res.json({ message: `Document shared successfully with ${emails.length} recipient(s)` });
+    } catch (error) {
+        console.error('Email sharing error:', error);
+        res.status(500).json({ message: 'Failed to share document via email' });
+    }
+};
+
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
 module.exports = {
     upload,
     uploadDocument,
@@ -253,5 +326,6 @@ module.exports = {
     getDocumentById,
     updateDocument,
     deleteDocument,
-    updatePermissions
+    updatePermissions,
+    shareDocumentViaEmail
 };

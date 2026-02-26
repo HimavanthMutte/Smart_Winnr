@@ -29,6 +29,10 @@ app.factory('documentService', ['$http', function($http) {
     documentFactory.updatePermissions = function(id, permissions) {
         return $http.put('/api/documents/' + id + '/permissions', permissions);
     };
+    
+    documentFactory.shareViaEmail = function(id, shareData) {
+        return $http.post('/api/documents/' + id + '/share', shareData);
+    };
 
     return documentFactory;
 }]);
